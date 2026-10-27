@@ -1,0 +1,11 @@
+{
+  "test_size": 707024,
+  "accuracy": 0.9999165516304963,
+  "macro_f1": 0.9996953776624085,
+  "confusion_matrix": {
+    "true_normals": 654707,
+    "false_alarms": 48,
+    "missed_alerts": 11,
+    "true_alerts": 52258
+  }
+}

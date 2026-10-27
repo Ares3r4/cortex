@@ -1,0 +1,60 @@
+text,true_label,pred_label
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+external input interrupt (unit=0x02 bit=0x00): uncorrectable torus error,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+no ethernet link,1,0
+tlb error.........................0,0,1
+DDR machine check register: 0x00000000 0x00000000,1,0
+tlb error.........................0,0,1
+No power module U58 found found on link card,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+"MidplaneSwitchController::parityAlignment() pap failed: R56-M1-L3-U22-C, status=dfffffff fffffd80",1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+No power module U58 found found on link card,1,0
+program interrupt,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+monitor caught java.lang.UnsupportedOperationException: power module U69 not present and is stopping,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+ciod: Error creating node map from file my_map.txt: Argument list too long,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+ciod: Error creating node map from file my_map.txt: Argument list too long,0,1
+tlb error.........................0,0,1
+external input interrupt (unit=0x02 bit=0x00): uncorrectable torus error,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+program interrupt,1,0
+tlb error.........................0,0,1
+floating point unavailable interrupt,1,0
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
+tlb error.........................0,0,1
