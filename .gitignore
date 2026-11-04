@@ -1,5 +1,7 @@
-.venv/
 data/
+mlruns/
+mlflow.db
+artifacts/model_v2/
+artifacts/checkpoints/
 __pycache__/
-*.pyc
-artifacts/*.joblib
+*.joblib

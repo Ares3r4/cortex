@@ -1,50 +1,35 @@
-# Cortex (V1): Log Anomaly Detection
+# Cortex
 
-Cortex is an end-to-end machine learning baseline that classifies raw Blue Gene/L (BGL) system log messages as **Normal** or **Alert**. V1 emphasizes reproducible data splits, leakage prevention, and comparison against an honest majority-class baseline on a highly imbalanced dataset.
+Cortex is a small machine-learning project with a FastAPI service for classifying
+comments as **Toxic** or **Safe**. The API loads a fine-tuned DistilBERT model
+from `artifacts/model_v2` and exposes prediction and health-check endpoints.
 
-## Project Structure
+The repository also contains an earlier, independent experiment for classifying
+Blue Gene/L (BGL) system logs as normal or alert. See
+[the BGL experiment](#bgl-log-classification-legacy) for its commands.
 
-```text
-cortex/
-├── configs/
-│   └── base.yaml               # Dataset, split, and random-seed configuration
-├── src/
-│   ├── cortex/
-│   │   ├── data.py             # BGL download, parsing, and split persistence
-│   │   ├── evaluate.py         # Frozen-model test evaluation and error export
-│   │   ├── features.py
-│   │   ├── predict.py
-│   │   ├── test_parse.py
-│   │   └── train.py            # Dummy baseline and TF-IDF + logistic regression
-│   └── data/                   # Dataset and split files created by the commands below
-├── artifacts/
-│   └── model_v1.joblib         # Serialized trained scikit-learn pipeline
-├── reports/
-│   ├── v1_metrics.json
-│   └── v1_misclassified.csv
-├── tests/
-│   ├── test_data.py
-│   └── test_train_smoke.py
-├── Makefile
-├── requirements.txt
-└── README.md
-```
+## Contents
 
-## Dataset and Method
+- [Requirements](#requirements)
+- [Run the API locally](#run-the-api-locally)
+- [Use the API](#use-the-api)
+- [Run with Docker](#run-with-docker)
+- [Train the toxic-comment model](#train-the-toxic-comment-model)
+- [BGL log classification (legacy)](#bgl-log-classification-legacy)
+- [Project layout](#project-layout)
 
-V1 uses the BGL supercomputer logs distributed by [LogHub](https://github.com/logpai/loghub). The dataset contains approximately 4.7 million log lines, with an approximate class distribution of 93% Normal and 7% Alert.
+## Requirements
 
-The parser extracts the message portion of each log line and removes its leading metadata before vectorization. This prevents the model from exploiting metadata that can directly encode the label. Data is divided into stratified train, validation, and test sets; the split indices are persisted in an `.npz` file so subsequent training and evaluation use the same examples.
+- Python 3.12 (the version used by the Docker image)
+- The dependencies in `requirements.txt`
+- The model files in `artifacts/model_v2` to run the API
 
-The reference model is a scikit-learn `Pipeline` with a TF-IDF word unigram/bigram vectorizer and class-weighted logistic regression. A `DummyClassifier` using the most frequent class provides a deliberately simple baseline against which to judge performance.
+The model is loaded when the API starts. If the model directory is missing or
+incompatible, startup will fail rather than serving predictions without a model.
 
-## How to Run
+## Run the API locally
 
-The current scripts resolve configuration and data paths relative to the working directory. Run the Python modules from `src/` as shown below. The first data-preparation run downloads BGL automatically if it is not already present.
-
-### Set up the environment
-
-From the repository root, create and activate a virtual environment, then install the project dependencies:
+From the repository root, create a virtual environment and install dependencies:
 
 ```powershell
 python -m venv .venv
@@ -58,9 +43,100 @@ On macOS or Linux, activate the environment with:
 source .venv/bin/activate
 ```
 
-### Prepare data, train, and evaluate
+Start the server from the `src` directory. The working directory matters: the
+API currently loads its model from `../artifacts/model_v2`.
 
-From the repository root, run:
+```powershell
+Set-Location src
+python -m uvicorn cortex.api:app --host 127.0.0.1 --port 8000
+```
+
+The service is available at `http://127.0.0.1:8000`. Interactive API
+documentation is at `http://127.0.0.1:8000/docs`.
+
+## Use the API
+
+Check whether the service is responding:
+
+```powershell
+curl.exe http://127.0.0.1:8000/health
+```
+
+Classify a comment:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/predict `
+  -H "Content-Type: application/json" `
+  -d '{"text":"Thanks for sharing your perspective."}'
+```
+
+`/predict` accepts a JSON object with a `text` string and returns the original
+text, a Boolean `is_toxic`, a confidence score, and a `label` (`"Toxic"` or
+`"Safe"`). For example:
+
+```json
+{
+  "text": "Thanks for sharing your perspective.",
+  "is_toxic": false,
+  "confidence": 0.9876,
+  "label": "Safe"
+}
+```
+
+The confidence is the model's probability for its selected class; it is not a
+calibrated measure of certainty.
+
+## Run with Docker
+
+Build the image from the repository root:
+
+```powershell
+docker build -t cortex-api .
+```
+
+Run the API and publish port 8000:
+
+```powershell
+docker run --rm -p 8000:8000 cortex-api
+```
+
+The image installs Python dependencies and copies `src/`, `configs/`, and
+`artifacts/model_v2/`. It therefore requires the model directory to be present
+at build time. Once running, use the same endpoints described above, for example
+`http://localhost:8000/health`.
+
+## Train the toxic-comment model
+
+The training script expects a CSV at `data/raw/train.csv` with a `comment_text`
+column and the six toxicity-label columns:
+`toxic`, `severe_toxic`, `obscene`, `threat`, `insult`, and `identity_hate`.
+The labels are combined into a binary target: a comment is toxic if any of the
+six labels is set.
+
+From the repository root, run training from `src`:
+
+```powershell
+Set-Location src
+python -m cortex.train_v2
+```
+
+On its first run, training downloads the `distilbert-base-uncased` tokenizer and
+base model from Hugging Face, so network access is required. The current script
+trains on the first 2,000 rows, uses a stratified 85/15 train/validation split,
+runs for one epoch, and logs accuracy and macro F1 to MLflow. It saves the
+fine-tuned model and tokenizer to `artifacts/model_v2` and checkpoints to
+`artifacts/checkpoints`.
+
+The API uses the saved model directory, so retrain before building the Docker
+image if you want the image to include the newly trained model.
+
+## BGL log classification (legacy)
+
+The repository also includes a separate TF-IDF and logistic-regression baseline
+for BGL system logs. It predicts **Normal** or **Alert** and is not used by the
+FastAPI service.
+
+From the repository root, generate data splits, train, and evaluate:
 
 ```powershell
 Set-Location src
@@ -69,38 +145,34 @@ python -m cortex.train
 python -m cortex.evaluate
 ```
 
-`cortex.data` downloads and parses BGL, then writes stratified split indices and split metadata. `cortex.train` fits the baseline and TF-IDF + logistic regression model and saves the pipeline to `artifacts/model_v1.joblib`. `cortex.evaluate` loads that saved artifact and the locked test split, prints a classification report and confusion-matrix counts, and writes `reports/v1_metrics.json` and `reports/v1_misclassified.csv`.
+The first data command downloads BGL logs when they are not already present.
+The split configuration is in `configs/base.yaml`; split indices and metadata
+are written to `data/splits/`. Training saves `artifacts/model_v1.joblib`.
+Evaluation uses the saved test split and writes metrics and misclassified
+examples to `reports/`.
 
-The saved split indices are the source of truth for reproducibility: keep them with the dataset version when comparing model runs. If the dataset or split configuration changes, regenerate the splits deliberately before retraining and evaluating.
+## Project layout
 
-## Results & Metrics
-
-The DummyClassifier score is the validation macro F1 reported during training. The learned model metrics below are from the locked test set (`n = 707,024`).
-
-| Model / metric | Result |
-|---|---:|
-| Dummy baseline macro F1 (validation) | 0.481 |
-| TF-IDF + logistic regression accuracy (test) | 99.99% |
-| TF-IDF + logistic regression macro F1 (test) | 0.9997 |
-| True Normals | 654,707 |
-| False Alarms | 48 |
-| Missed Alerts | 11 |
-| True Alerts | 52,258 |
-
-Despite the strong aggregate test metrics, accuracy alone is not sufficient for this imbalanced task. Macro F1 and the individual false-alarm and missed-alert counts provide a more informative view of minority-class performance and operational trade-offs.
-
-## Error Analysis
-
-Review of the misclassified logs highlights limitations that aggregate metrics do not capture:
-
-- **Keyword overfitting:** The model flagged benign correction messages such as `tlb error....0` as alerts, indicating that it over-indexed on the phrase “tlb error.”
-- **Semantic blindness:** It classified `ciod: Error creating node map...` as an alert based on the token “Error,” without recognizing the message as a benign startup log.
-- **Rare alert blindness:** It missed 11 actual alerts, including messages such as `no ethernet link`. Extremely rare alert patterns are difficult to learn from the training distribution.
-
-These errors motivate improvements in contextual language understanding and handling of rare classes; they also reinforce the need to inspect representative errors rather than relying on a single headline score.
-
-## Next Steps (V2)
-
-- Add **MLflow experiment tracking** for parameters, dataset/split metadata, metrics, and model artifacts to make comparisons auditable.
-- Fine-tune a **DistilBERT** model on the log messages to capture context and address semantic blindness to isolated keywords.
-- Evaluate rare-alert strategies and report per-class precision and recall alongside macro F1, with particular attention to missed alerts and false-alarm costs.
+```text
+cortex/
+├── artifacts/
+│   ├── model_v1.joblib          # Legacy BGL classifier
+│   ├── model_v2/                # Fine-tuned toxic-comment model and tokenizer
+│   └── checkpoints/             # Training checkpoints
+├── configs/
+│   └── base.yaml                # Shared data and split settings
+├── data/
+│   ├── raw/                     # Training CSV and downloaded BGL logs
+│   └── splits/                  # Persisted BGL split indices and metadata
+├── reports/                     # Legacy BGL evaluation outputs
+├── src/cortex/
+│   ├── api.py                   # FastAPI prediction service
+│   ├── data.py                  # BGL download, parsing, and splits
+│   ├── data_toxic.py            # Toxic-comment CSV loading
+│   ├── evaluate.py              # Legacy BGL evaluation
+│   ├── train.py                 # Legacy BGL baseline training
+│   └── train_v2.py              # DistilBERT toxic-comment training
+├── tests/
+├── Dockerfile
+└── requirements.txt
+```
