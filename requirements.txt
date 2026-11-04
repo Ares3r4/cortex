@@ -2,3 +2,16 @@ numpy
 scikit-learn
 scipy
 pyyaml
+pytest
+pandas
+torch
+transformers
+mlflow-skinny
+accelerate
+sqlalchemy
+alembic
+flask
+flask-cors
+fastapi
+uvicorn
+pydantic
