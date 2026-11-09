@@ -19,7 +19,7 @@ def load_toxic_data(cfg):
     y = df['is_toxic'].values
 
     # Limit to 10,000 rows
-    max_lines = cfg.get("max_lines", 2000)
+    max_lines = cfg.get("max_lines", 10000)
     if max_lines is not None:
         texts = texts[:max_lines]
         y = y[:max_lines]
