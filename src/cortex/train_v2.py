@@ -37,7 +37,7 @@ def train_v2():
     with open("../configs/base.yaml", "r") as f:
         cfg = yaml.safe_load(f)
         
-    cfg["max_lines"] = 2000
+    cfg["max_lines"] = 10000
     
     print(f"Loading data for V2...")
     (x_train, y_train), (x_val, y_val) = load_toxic_data(cfg)
